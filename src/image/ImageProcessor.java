@@ -10,35 +10,31 @@ import java.awt.*;
 public class ImageProcessor {
 
     // Private constructor to prevent instantiation
-    private ImageProcessor() {
-        throw new UnsupportedOperationException("Utility class cannot be instantiated");
-    }
+    private ImageProcessor() {}
 
     /**
      * Pads the given image to the nearest power of 2 dimensions and centers it.
      *
-     * @param pixelArray The pixel array of the original image.
-     * @param width      The width of the original image.
-     * @param height     The height of the original image.
+     * @param image The original image.
      * @return A new Image object representing the padded image with the original centered.
      */
-    public static Image padImageToPowerOfTwo(Color[][] pixelArray, int width, int height) {
+    public static Image padImageToPowerOfTwo(Image image) {
         // Calculate the new dimensions (next power of 2)
-        int paddedWidth = nextPowerOfTwo(width);
-        int paddedHeight = nextPowerOfTwo(height);
+        int paddedWidth = nextPowerOfTwo(image.getWidth());
+        int paddedHeight = nextPowerOfTwo(image.getHeight());
 
         // Create a new pixel array for the padded image
         Color[][] paddedPixelArray = new Color[paddedHeight][paddedWidth];
 
         // Calculate the starting position to center the original image
-        int startRow = (paddedHeight - height) / 2;
-        int startCol = (paddedWidth - width) / 2;
+        int startRow = (paddedHeight - image.getHeight()) / 2;
+        int startCol = (paddedWidth - image.getWidth()) / 2;
 
         // Copy the original pixel array into the center of the new pixel array
         for (int r = 0; r < paddedHeight; r++) {
             for (int c = 0; c < paddedWidth; c++) {
-                paddedPixelArray[startRow + r][startCol + c] = new Color(pixelArray[r][c].getRed(),
-                        pixelArray[r][c].getGreen(), pixelArray[r][c].getBlue()); // todo validate creating
+                paddedPixelArray[startRow + r][startCol + c] = new Color(image.getPixel(r, c).getRed(),
+                        image.getPixel(r, c).getGreen(), image.getPixel(r, c).getBlue()); // todo validate creating
                 // obj
             }
         }
@@ -47,13 +43,13 @@ public class ImageProcessor {
         for (int r = 0; r < startRow; r++) {
             for (int c = 0; c < paddedWidth; c++) {
                 paddedPixelArray[r][c] = new Color(255, 255, 255); // White pixel
-                paddedPixelArray[height + r][c] = new Color(255, 255, 255); // White pixel
+                paddedPixelArray[image.getHeight() + r][c] = new Color(255, 255, 255); // White pixel
             }
         }
         for (int r = startRow; r < startRow + paddedHeight; r++) {
             for (int c = 0; c < startCol; c++) {
                 paddedPixelArray[r][c] = new Color(255, 255, 255); // White pixel
-                paddedPixelArray[r][width + c] = new Color(255, 255, 255); // White pixel
+                paddedPixelArray[r][image.getWidth() + c] = new Color(255, 255, 255); // White pixel
             }
         }
         // Return a new Image object with the padded pixel array
@@ -64,7 +60,6 @@ public class ImageProcessor {
      * Divides the given padded image into sub-images based on the resolution.
      *
      * @param paddedImage   The padded image to divide.
-     * @param numCharsInRow The number of characters in each row of the ASCII art.
      * @return A 2D array of sub-images representing the divided image.
      */
     public static Image[][] divideImageIntoSubImages(Image paddedImage, int numCharsInRow) {

@@ -4,13 +4,21 @@ import java.util.*;
 
 public class SubImgCharMatcher {
 
-    public char[] charSet;
+//    public char[] charSet;
+    public Set<Character> charSet;
+    //        private Set<Character> charSet = new HashSet<>()
     private Map<Character, Double> brightnessMap;
     private TreeMap<Double, List<Character>> normalizedBrightnessMap;
 
+//    private final HashMap<Character, Double> cache = new HashMap<>();
+
     //api
     public SubImgCharMatcher(char[] charset) {
-        this.charSet = charset; //todo - sort?
+        this.charSet = new HashSet<>(); /* todo - sort? */
+        for (char c : charset) {
+            charSet.add(c);
+        }
+//        Collections.addAll(charSet, charset);
         this.brightnessMap = new HashMap<>();
         this.normalizedBrightnessMap = new TreeMap<>();
         calculateBrightness();
