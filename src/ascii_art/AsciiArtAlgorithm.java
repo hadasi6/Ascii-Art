@@ -1,43 +1,41 @@
 package ascii_art;
 
-import ascii_output.ConsoleAsciiOutput.*;
-
-
 import image.Image;
-import image.ImageProcessor;
+import image.SubImageManager;
 import image_char_matching.SubImgCharMatcher;
-
-import ascii_output.ConsoleAsciiOutput;
-
-import java.io.IOException;
+import java.util.Set;
 
 public class AsciiArtAlgorithm {
 
     private Image image; //todo - final???
     private int resolution;
-    private char[] chars;
+    private Set<Character> chars;
 
-    public AsciiArtAlgorithm(Image imageInput, int resolution, char[] charset) {
+    private SubImgCharMatcher matcher;
+    private SubImageManager subImageManager;
+    private String roundingMethod; //todo - not in api
+
+    public AsciiArtAlgorithm(Image imageInput, int resolution, Set<Character> charset,
+                             SubImgCharMatcher matcher, SubImageManager subImageManager) {
         this.image = imageInput;
         this.resolution = resolution;
         this.chars = charset;
+        this.matcher = matcher;
+        this.subImageManager = subImageManager;
     }
 
-    public char [][] run() {
-        Image paddedImage = ImageProcessor.padImageToPowerOfTwo(image);
-        Image[][] subImages = ImageProcessor.divideImageIntoSubImages(image, resolution);
+    public char[][] run() {
 
-        //instance
-        SubImgCharMatcher imgCharMatcher = new SubImgCharMatcher(chars);
+        Image[][] subImages = subImageManager.getSubImages(resolution);
+        int numRows = image.getHeight() / (image.getWidth() / resolution);
 
-//        int numRows = imageHeight / (imageWidth / numCharsInRow);
-        int numRows = paddedImage.getHeight()/(paddedImage.getWidth()/resolution);
+        char[][] chars = new char[subImages.length][subImages[0].length];
+        for (int row = 0; row < numRows; row++) {
+            for (int col = 0; col < resolution; col++) {
+                double subImageBrightness = this.subImageManager.calculateBrightness(subImages[row][col]);
+                //todo put here the code that supports rounding
 
-        char[][] chars = new char[numRows][resolution];
-        for (int row=0; row < numRows; row++) {
-            for (int col=0; col < resolution; col++) {
-                double subImageBrightness = ImageProcessor.calculateBrightness(subImages[row][col]);
-                chars[row][col] = imgCharMatcher.getCharByImageBrightness(subImageBrightness);
+                chars[row][col] = matcher.getCharByImageBrightness(subImageBrightness);
             }
         }
         return chars;

@@ -8,6 +8,7 @@ import java.io.IOException;
 
 /**
  * A package-private class of the package image.
+ *
  * @author Dan Nirel
  */
 public class Image {
@@ -25,7 +26,7 @@ public class Image {
         pixelArray = new Color[height][width];
         for (int i = 0; i < height; i++) {
             for (int j = 0; j < width; j++) {
-                pixelArray[i][j]=new Color(im.getRGB(j, i));
+                pixelArray[i][j] = new Color(im.getRGB(j, i));
             }
         }
     }
@@ -48,7 +49,7 @@ public class Image {
         return pixelArray[x][y];
     }
 
-    public void saveImage(String fileName){
+    public void saveImage(String fileName) {
         // Initialize BufferedImage, assuming Color[][] is already properly populated.
         BufferedImage bufferedImage = new BufferedImage(pixelArray[0].length, pixelArray.length,
                 BufferedImage.TYPE_INT_RGB);
@@ -58,7 +59,7 @@ public class Image {
                 bufferedImage.setRGB(y, x, pixelArray[x][y].getRGB());
             }
         }
-        File outputfile = new File(fileName+".jpeg");
+        File outputfile = new File(fileName + ".jpeg");
         try {
             ImageIO.write(bufferedImage, "jpeg", outputfile);
         } catch (IOException e) {

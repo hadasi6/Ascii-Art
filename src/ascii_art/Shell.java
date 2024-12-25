@@ -1,12 +1,14 @@
 package ascii_art;
 
+import ascii_output.AsciiOutput;
 import ascii_output.ConsoleAsciiOutput;
+import ascii_output.HtmlAsciiOutput;
 import image.Image;
+import image.ImagePaddingManager;
+import image.SubImageManager;
 import image_char_matching.SubImgCharMatcher;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -19,30 +21,36 @@ public class Shell {
     private static final String COMMAND_ADD = "add";
     private static final String COMMAND_REMOVE = "remove";
     private static final String COMMAND_RES = "res";
-    private static final String CONSOLE_COMMAND = "console";
-    private static final String RENDER_COMMAND = "render";
+    private static final String COMMAND_ROUND = "round";
+
+    private static final String COMMAND_OUTPUT = "output";
+    private static final String COMMAND_ASCII_ART = "asciiArt";
 
     private static final char MIN_CHAR = 32;
     private static final char MAX_CHAR = 127;
 
     //default args:
     private static final int DEFAULT_RESOLUTION = 2;
-    private static final String DEFAULT_ROUNDED_BRIGHTNESS = "abs";  //todo change
+    private static final String DEFAULT_ROUNDING = "abs";  //todo change
     private static final char[] DEFAULT_CHARS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
 
+    private static final Set<Character> DEFAULT_CHAR_SET = Set.of('0', '1', '2', '3', '4', '5', '6', '7',
+            '8', '9');
 
+    private String DEFAULT_FONT = "Courier New";
+    private SubImgCharMatcher charMatcher;
     private int resolution;
-//    private final Set<Character> characterSet;
+    private AsciiOutput output;
+    //    private final Set<Character> characterSet;
     public Shell() {
+
         this.resolution = DEFAULT_RESOLUTION;
-//        this.characterSet = new HashSet<>();
-//        for (char c : DEFAULT_CHARS) {
-//            this.characterSet.add(c);
-//        }.
+        this.output = new ConsoleAsciiOutput();
+        this.charMatcher = new SubImgCharMatcher(DEFAULT_CHARS);
+        charMatcher.setRoundingMethod(DEFAULT_ROUNDING);
     }
 
     public void run(String imageName) {
-
         Image inputImage;
         try {
             inputImage = new Image(imageName);
@@ -50,50 +58,51 @@ public class Shell {
             //todo - validate if needed to print
             return;
         }
-        SubImgCharMatcher subImgCharMatcher = new SubImgCharMatcher(DEFAULT_CHARS);
+        Image paddedImage = ImagePaddingManager.padImageToPowerOfTwo(inputImage);
 
-        AsciiArtAlgorithm asciiArtAlgorithm = new AsciiArtAlgorithm(inputImage, resolution, DEFAULT_CHARS);
+        SubImageManager subImageManager = new SubImageManager(paddedImage);
 
-        System.out.println(COMMAND_PREFIX);
+        System.out.print(COMMAND_PREFIX);
         String command = KeyboardInput.readLine();
 
         while (!command.equals(COMMAND_EXIT)) {
+
             try {
-                String[] parts = command.split("\\s+", 2);
+                String[] parts = command.split("\\s+", 3);
                 String baseCommand = parts[0];
                 String arguments = parts.length > 1 ? parts[1] : "";
 
                 switch (baseCommand) {
                     case COMMAND_CHARS:
-                        printSortedChars(subImgCharMatcher.charSet);
+                        printSortedChars();
                         break;
                     case COMMAND_ADD:
-                        handleAdd(arguments, subImgCharMatcher);
+                        handleAdd(arguments);
                         break;
                     case COMMAND_REMOVE:
-                        handleRemove(arguments, subImgCharMatcher);
+                        handleRemove(arguments);
                         break;
                     case COMMAND_RES:
-                        handleResolution(arguments, inputImage);
-                        break;
-                    case COMMAND_OUTPUT:
-                        handleOutput(arguments);
+                        handleResolution(arguments, paddedImage);
                         break;
                     case COMMAND_ROUND:
                         handleRounding(arguments);
                         break;
+                    case COMMAND_OUTPUT:
+                        handleOutput(arguments);
+                        break;
                     case COMMAND_ASCII_ART:
-                        handleAsciiArt();
+                        handleAsciiArt(paddedImage, subImageManager);
                         break;
                     default:
                         throw new CommandException("Did not execute due to incorrect command.");
                 }
-            } catch (CommandException | CharsetException | ResolutionException e) {
+            } catch (IOException | CommandException | CharsetException | ResolutionException e) {
                 System.out.println(e.getMessage());
             }
-
-            System.out.println(">>> ");
+            System.out.print(COMMAND_PREFIX);
             command = KeyboardInput.readLine();
+
         }
 
     }
@@ -103,35 +112,35 @@ public class Shell {
         shell.run(args[0]);
     }
 
-    private void handleAdd(String arguments, SubImgCharMatcher subImgCharMatch) throws CommandException, CharsetException{
+    private void handleAdd(String arguments) throws CommandException, CharsetException {
         if (arguments.isEmpty()) {
             throw new CommandException("Did not add due to incorrect format.");
         }
 
         if (arguments.equals("all")) {
             for (char c = MIN_CHAR; c <= MAX_CHAR; c++) {
-                subImgCharMatch.addChar(c);
+                charMatcher.addChar(c);
             }
         } else if (arguments.equals("space")) {
-            subImgCharMatch.addChar(' ');
+            charMatcher.addChar(' ');
         } else if (arguments.length() == 1) {
             char c = arguments.charAt(0);
-            if (c >= 32 && c <= 126) {
-                subImgCharMatch.addChar(c);
+            if (c >= MIN_CHAR && c < MAX_CHAR) {
+                charMatcher.addChar(c);
             } else {
                 throw new CharsetException("Character out of valid ASCII range.");
             }
         } else if (arguments.matches(".-.")) {
             char start = arguments.charAt(0);
             char end = arguments.charAt(2);
-            if (start >= 32 && end >= 32 && start <= 126 && end <= 126) {
+            if (start >= MIN_CHAR && end >= MIN_CHAR && start < MAX_CHAR && end < MAX_CHAR) {
                 if (start <= end) {
                     for (char c = start; c <= end; c++) {
-                        subImgCharMatch.addChar(c);
+                        charMatcher.addChar(c);
                     }
                 } else {
                     for (char c = start; c >= end; c--) {
-                        subImgCharMatch.addChar(c);
+                        charMatcher.addChar(c);
                     }
                 }
             } else {
@@ -142,36 +151,36 @@ public class Shell {
         }
     }
 
-    private void handleRemove(String arguments, SubImgCharMatcher subImgCharMatch) throws CommandException, CharsetException {
+    private void handleRemove(String arguments) throws CommandException, CharsetException {
         if (arguments.isEmpty()) {
             throw new CommandException("Did not remove due to incorrect format.");
         }
 
         if (arguments.equals("all")) {
-            Character[] charArray = subImgCharMatch.charSet.toArray(new Character[0]);
+            Character[] charArray = charMatcher.getCharSet().toArray(new Character[0]);
             for (Character c : charArray) {
-                subImgCharMatch.removeChar(c);
+                charMatcher.removeChar(c);
             }
         } else if (arguments.equals("space")) {
-            subImgCharMatch.removeChar(' ');
+            charMatcher.removeChar(' ');
         } else if (arguments.length() == 1) {
             char c = arguments.charAt(0);
             if (c >= MIN_CHAR && c <= MAX_CHAR) {
-                subImgCharMatch.removeChar(c);
+                charMatcher.removeChar(c);
             } else {
                 throw new CharsetException("Character out of valid ASCII range.");
             }
         } else if (arguments.matches(".-.")) {
             char start = arguments.charAt(0);
             char end = arguments.charAt(2);
-            if (start >= 32 && end >= MIN_CHAR && start <= MAX_CHAR && end <= MAX_CHAR) {
+            if (start >= MIN_CHAR && end >= MIN_CHAR && start <= MAX_CHAR && end <= MAX_CHAR) {
                 if (start <= end) {
                     for (char c = start; c <= end; c++) {
-                        subImgCharMatch.removeChar(c);
+                        charMatcher.removeChar(c);
                     }
                 } else {
                     for (char c = start; c >= end; c--) {
-                        subImgCharMatch.removeChar(c);
+                        charMatcher.removeChar(c);
                     }
                 }
             } else {
@@ -182,15 +191,17 @@ public class Shell {
         }
     }
 
-    private void handleResolution(String arguments, Image image, SubImgCharMatcher subImgCharMatch) throws ResolutionException, CommandException {
-        int minResolution = Math.max(1, image.getWidth() / image.getHeight());
+    private void handleResolution(String arguments, Image image) throws ResolutionException,
+            CommandException {
+        int minResolution = Math.max(1, image.getWidth() / image.getHeight()); //todo to transmit
         int maxResolution = image.getWidth();
+
 
         if (arguments.isEmpty()) {
             System.out.println("Resolution set to " + resolution + ".");
-        } else if (arguments.equals("up")) {
+        } else if (arguments.equals("up")) {  //todo validate upper case
             if (resolution * 2 <= maxResolution) {
-                resolution *= 2;
+                resolution *= 2; //todo - validate if there is something else that need to be changed
                 System.out.println("Resolution set to " + resolution + ".");
             } else {
                 throw new ResolutionException("Did not change resolution due to exceeding boundaries.");
@@ -207,24 +218,49 @@ public class Shell {
         }
     }
 
+    private void handleRounding(String arguments) throws CommandException {
+        if (arguments.equals("up") || arguments.equals("down") || arguments.equals("abs")) {
 
+            charMatcher.setRoundingMethod(arguments);
+//            roundingMethod = arguments;
+            System.out.println("Rounding method set to " + arguments + ".");
+        } else {
+            throw new CommandException("Did not change rounding method due to incorrect format.");
+        }
+    }
 
-    private void printSortedChars(Set<Character> charset) {
-        TreeSet<Character> sortedSet = new TreeSet<>(charset);
+    private void handleOutput(String arguments) throws CommandException {
+
+        if (arguments.equals("console")) {
+            ConsoleAsciiOutput consoleOutPut = new ConsoleAsciiOutput();
+            this.output = consoleOutPut;
+            System.out.println("Output set to console.");
+        } else if (arguments.equals("html")) {
+            HtmlAsciiOutput htmlOutPut = new HtmlAsciiOutput("out.html", DEFAULT_FONT);
+            this.output = htmlOutPut;
+            System.out.println("Output set to html.");
+        } else {
+            throw new CommandException("Did not change output method due to incorrect format.");
+        }
+    }
+
+    private void printSortedChars() {
+        TreeSet<Character> sortedSet = new TreeSet<>(charMatcher.getCharSet());
 
         for (char c : sortedSet) {
             System.out.print(c + " ");
         }
         System.out.println();
     }
+
+    private void handleAsciiArt(Image image, SubImageManager subImageManager) throws IOException {
+        if (charMatcher.getCharSet().size() < 2) {
+            throw new IOException("Did not execute. Charset is too small.");
+        }
+        AsciiArtAlgorithm algorithm = new AsciiArtAlgorithm(image, resolution, charMatcher.getCharSet(),
+                charMatcher, subImageManager);
+
+        char[][] art = algorithm.run();
+        output.out(art);
+    }
 }
-//}
-//
-//public static void main(String[] args) throws IOException {
-//    Image img = new Image("board.jpeg");
-//    char[] charse = new char[] {'m', 'o'};
-//    AsciiArtAlgorithm alg = new AsciiArtAlgorithm(img, 2, charse);
-//    char[][] output = alg.run();
-//    ConsoleAsciiOutput console = new ConsoleAsciiOutput();
-//    console.out(output);
-//}
