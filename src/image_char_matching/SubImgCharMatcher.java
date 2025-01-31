@@ -2,30 +2,59 @@ package image_char_matching;
 
 import java.util.*;
 
+/**
+ * The SubImgCharMatcher class is responsible for matching characters to image brightness levels.
+ * It maintains a set of characters and their corresponding brightness values, and provides methods
+ * to add or remove characters, set the rounding method, and get a character based on image brightness.
+ *
+ * @ Author: Hadas Elezre
+ */
 public class SubImgCharMatcher {
 
-    private Set<Character> charSet;
-    private Map<Character, Double> brightnessMap;
-    private TreeMap<Double, List<Character>> normalizedBrightnessMap;
+    /**
+     * The set of characters used for matching.
+     */
+    private final Set<Character> charSet;
 
+    /**
+     * A map of characters to their brightness values.
+     */
+    private final Map<Character, Double> brightnessMap;
+    /**
+     * A map of normalized brightness values to lists of characters.
+     */
+    private final TreeMap<Double, List<Character>> normalizedBrightnessMap;
+
+    /**
+     * The rounding method used for matching characters to brightness values.
+     */
     private String roundingMethod;
 
-    private static final String DEFAULT_ROUND = "abs"; // default todo - validate explain
-    private static final int DEFAULT_PIXEL_RESOLUTION = 16;
-//    private final HashMap<Character, Double> cache = new HashMap<>();
+    //Default values
+    private static final String DEFAULT_ROUND = "abs"; // Default rounding method
+    private static final int DEFAULT_PIXEL_RESOLUTION = 16; // Default pixel resolution
+
 
     //api
+    /**
+     * Constructs a SubImgCharMatcher with the given character set.
+     *
+     * @param charset the array of characters to be used for matching
+     */
     public SubImgCharMatcher(char[] charset) {
-        this.roundingMethod = DEFAULT_ROUND;
-        this.charSet = new HashSet<>(); /* todo - sort? */
+        this.charSet = new HashSet<>();
         for (char c : charset) {
             charSet.add(c);
         }
+        this.roundingMethod = DEFAULT_ROUND;
         this.brightnessMap = new HashMap<>();
         this.normalizedBrightnessMap = new TreeMap<>();
         calculateBrightness();
     }
 
+    /**
+     * Calculates the brightness for each character in the character set.
+     */
     private void calculateBrightness() {
         for (char c : charSet) {
             boolean[][] boolArray = CharConverter.convertToBoolArray(c);
@@ -35,6 +64,9 @@ public class SubImgCharMatcher {
         normalizeBrightness();
     }
 
+    /**
+     * Normalizes the brightness values of the characters.
+     */
     private void normalizeBrightness() {
         if (brightnessMap.isEmpty()) {
             return;
@@ -43,9 +75,9 @@ public class SubImgCharMatcher {
         double maxBrightness = Collections.max(brightnessMap.values());
 
         normalizedBrightnessMap.clear();
-        double normVal = maxBrightness - minBrightness; //todo - change name
+        double brightnessRange = maxBrightness - minBrightness;
         for (Map.Entry<Character, Double> entry : brightnessMap.entrySet()) {
-            double normalizedBrightness = (entry.getValue() - minBrightness) / normVal;
+            double normalizedBrightness = (entry.getValue() - minBrightness) / brightnessRange;
             normalizedBrightnessMap
                     .computeIfAbsent(normalizedBrightness, k -> new ArrayList<>())
                     .add(entry.getKey());
@@ -55,8 +87,13 @@ public class SubImgCharMatcher {
         }
     }
 
+    /**
+     * Calculates the brightness of a boolean array representing a character.
+     *
+     * @param boolArray the boolean array representing the character
+     * @return the brightness value of the character
+     */
     private double calculateArrayBrightness(boolean[][] boolArray) {
-//        int totalPixels = boolArray.length*boolArray[0].length;
         int litPixels = 0;
         for (boolean[] row : boolArray) {
             for (boolean pixel : row) {
@@ -65,10 +102,15 @@ public class SubImgCharMatcher {
                 }
             }
         }
-        return (double) litPixels / DEFAULT_PIXEL_RESOLUTION; //todo - delete double?
+        return (double) litPixels / DEFAULT_PIXEL_RESOLUTION;
     }
 
-    //api
+    /**
+     * Gets a character based on the given image brightness.
+     *
+     * @param brightness the brightness value of the image
+     * @return the character that best matches the brightness value
+     */
     public char getCharByImageBrightness(double brightness) {
         Map.Entry<Double, List<Character>> lower = normalizedBrightnessMap.floorEntry(brightness);
         Map.Entry<Double, List<Character>> higher = normalizedBrightnessMap.ceilingEntry(brightness);
@@ -80,7 +122,6 @@ public class SubImgCharMatcher {
             return lower.getValue().get(0);
         }
 
-        // בחירת תו לפי שיטת העיגול שנבחרה
         switch (roundingMethod) {
             case "up":
                 return higher.getValue().get(0);
@@ -93,55 +134,53 @@ public class SubImgCharMatcher {
         }
     }
 
-    //api
+    /**
+     * Adds a character to the character set and updates the brightness values.
+     *
+     * @param c the character to be added
+     */
     public void addChar(char c) {
-        if (!charSet.contains(c)) { // הוספה: בדיקה אם התו כבר קיים
+        if (!charSet.contains(c)) {
             charSet.add(c);
             boolean[][] boolArray = CharConverter.convertToBoolArray(c);
             double brightness = calculateArrayBrightness(boolArray);
             brightnessMap.put(c, brightness);
-
-            //todo - add this as attributes?
-            double minBrightness = Collections.min(brightnessMap.values());
-            double maxBrightness = Collections.max(brightnessMap.values());
-
             normalizeBrightness();
-            //todo - validate adding
-//            if (brightness<minBrightness || brightness>maxBrightness) {
-//                normalizeBrightness();
-//            } else {
-//                double normalizedBrightness = (brightness-minBrightness) / (maxBrightness-minBrightness);
-//                normalizedBrightnessMap
-//                        .computeIfAbsent(normalizedBrightness, k -> new ArrayList<>())
-//                        .add(c);
-//                normalizedBrightnessMap.get(normalizedBrightness).sort(Comparator.naturalOrder());
-//            }
-            // הוספה: חישוב מחדש של הערכים המנורמלים
         }
     }
 
     //api
-    public void removeChar(char c) { //todo validate if checking conatain in brightnessMap and contaim in
-        // charset
-        if (brightnessMap.containsKey(c)) { // הוספה: בדיקה אם התו קיים
+    /**
+     * Removes a character from the character set and updates the brightness values.
+     *
+     * @param c the character to be removed
+     */
+    public void removeChar(char c) {
+        if (brightnessMap.containsKey(c)) {
             brightnessMap.remove(c);
             charSet.remove(c);
-
-            //todo  - as in add
-            normalizeBrightness(); // הוספה: חישוב מחדש של הערכים המנורמלים
+            normalizeBrightness();
         }
     }
 
-    //todo - not in api
+    /**
+     * Sets the rounding method for matching characters to brightness values.
+     *
+     * @param method the rounding method ("up", "down", or "abs")
+     */
     public void setRoundingMethod(String method) {
         if (method.equals("up") || method.equals("down") || method.equals("abs")) {
             this.roundingMethod = method;
-        } else { //todo - validate if needed
+        } else {
             throw new IllegalArgumentException("Invalid rounding method: " + method);
         }
     }
 
-    //todo - not in api
+    /**
+     * Gets the character set.
+     *
+     * @return the character set
+     */
     public Set<Character> getCharSet() {
         return charSet;
     }

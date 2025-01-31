@@ -3,20 +3,57 @@ package image;
 import java.awt.*;
 import java.util.Objects;
 
+
+/**
+ * The SubImageManager class is responsible for managing sub-images of a padded image.
+ * It includes methods to divide an image into sub-images and calculate the brightness of an image.
+ *
+ * @ Author: Hadas Elezra
+ */
 public class SubImageManager {
 
-    private static final int MAX_RGB = 255;
+    // Constants
+    private static final int MAX_RGB = 255; // Maximum value for RGB
+    private static final double RED_COEFFICIENT = 0.2126; // Coefficient for red channel
+    private static final double GREEN_COEFFICIENT = 0.7152; // Coefficient for green channel
+    private static final double BLUE_COEFFICIENT = 0.0722; // Coefficient for blue channel
+    private static SubImageManager instance; // Singleton instance
 
-    private Image paddedImageCache; // Cache for the padded image
+    // Fields
+    private final Image paddedImageCache; // Cache for the padded image
     private Image[][] subImagesCache; // Cache for the sub-images
     private int lastResolution; // Last used resolution
 
-    public SubImageManager(Image paddedImage) {
+    /**
+     * Private constructor to prevent instantiation from outside the class.
+     *
+     * @param paddedImage The padded image to be managed.
+     */
+    private SubImageManager(Image paddedImage) {
         this.paddedImageCache = Objects.requireNonNull(paddedImage, "Padded image cannot be null");
         this.subImagesCache = null;
         this.lastResolution = -1; // No resolution initially
     }
 
+    /**
+     * Returns the singleton instance of SubImageManager.
+     *
+     * @param paddedImage The padded image to be managed.
+     * @return The singleton instance of SubImageManager.
+     */
+    public static SubImageManager getInstance(Image paddedImage) { // Added static getInstance method
+        if (instance == null) {
+            instance = new SubImageManager(paddedImage);
+        }
+        return instance;
+    }
+
+    /**
+     * Returns the sub-images of the padded image.
+     *
+     * @param numCharsInRow The number of characters in a row.
+     * @return A 2D array of sub-images.
+     */
     public Image[][] getSubImages(int numCharsInRow) {
         if (subImagesCache == null || lastResolution != numCharsInRow) {
             subImagesCache = divideImageIntoSubImages(paddedImageCache, numCharsInRow);
@@ -25,6 +62,13 @@ public class SubImageManager {
         return subImagesCache;
     }
 
+    /**
+     * Divides the padded image into sub-images.
+     *
+     * @param paddedImage   The padded image to be divided.
+     * @param numCharsInRow The number of characters in a row.
+     * @return A 2D array of sub-images.
+     */
     private Image[][] divideImageIntoSubImages(Image paddedImage, int numCharsInRow) {
         int imageWidth = paddedImage.getWidth();
         int imageHeight = paddedImage.getHeight();
@@ -44,6 +88,16 @@ public class SubImageManager {
         return subImages;
     }
 
+    /**
+     * Extracts a sub-image from the padded image.
+     *
+     * @param image    The padded image.
+     * @param startRow The starting row of the sub-image.
+     * @param height   The height of the sub-image.
+     * @param startCol The starting column of the sub-image.
+     * @param width    The width of the sub-image.
+     * @return The extracted sub-image.
+     */
     private Image extractSubImage(Image image, int startRow, int height, int startCol, int width) {
         Color[][] subImagePixels = new Color[height][width];
         for (int r = 0; r < height; r++) {
@@ -55,10 +109,10 @@ public class SubImageManager {
     }
 
     /**
-     * Calculates the brightness of image
+     * Calculates the brightness of an image.
      *
-     * @param image The 2D array of square sub-images.
-     * @return A 2D array of brightness values corresponding to each sub-image.
+     * @param image The image to calculate the brightness of.
+     * @return The brightness value of the image.
      */
     public double calculateBrightness(Image image) {
         int numRows = image.getHeight();
@@ -70,8 +124,8 @@ public class SubImageManager {
             for (int col = 0; col < numCols; col++) {
                 Color pixelColor = image.getPixel(row, col);
                 double greyPixel =
-                        pixelColor.getRed() * 0.2126 + pixelColor.getGreen() * 0.7152 +
-                                pixelColor.getBlue() * 0.0722;
+                        pixelColor.getRed() * RED_COEFFICIENT + pixelColor.getGreen() * GREEN_COEFFICIENT +
+                                pixelColor.getBlue() * BLUE_COEFFICIENT;
                 sumBrightness += greyPixel;
             }
         }
